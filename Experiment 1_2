@@ -156,7 +156,7 @@ function simulate_data(lfp_vector,k_vector,wages_vector,df_for_calib) ##create f
     s_x=zeros(N*T_data)
     s_wages=zeros(N*T_data)
     s_educ=zeros(N*T_data)
-    sim_data=zeros(N*T_data,6,M) ##to store the six things we care about, no initial labor or husband's wage
+    sim_data=zeros(N*T_data,7,M) ##to store the six things we care about, no initial labor or husband's wage
     for m=1:M
         s_id=df_for_calib.id #s_id is just id information from the df
         s_age=df_for_calib.age
@@ -164,8 +164,9 @@ function simulate_data(lfp_vector,k_vector,wages_vector,df_for_calib) ##create f
         s_x=vec(k_vector[:,:,m]')
         s_wages=vec(wages_vector[:,:,m]')
         s_educ=df_for_calib.educ
-        sim=DataFrames.DataFrame(hcat(s_id, s_age,s_lfp, s_x,s_wages,s_educ), :auto) #convert to dataframe format
-        sim_data[:,:,m].=rename!(sim,[:id,:age,:lfp,:x,:wage,:educ]) #rename data
+        s_hinc=df_for_calib.hinc
+        sim=DataFrames.DataFrame(hcat(s_id, s_age,s_lfp, s_x,s_wages,s_educ,s_hinc), :auto) #convert to dataframe format
+        sim_data[:,:,m].=rename!(sim,[:id,:age,:lfp,:x,:wage,:educ,:hinc]) #rename data
     end
     return sim_data
 end
@@ -214,7 +215,6 @@ end
 
 ### Took the same code as for experiment 1 and changed a bit
 ### need to find only average number of years worked from 45 to 54 and from 55 to 64.
-τ=0.1
 function get_results_experiment2() #this computes results for experiment 1
     Random.seed!(1234); #generating simulated results
     xi_matrix = reshape(rand(Normal(0, σ_ξ), N*T_data*M), N,T_data,M) #draw shocks
@@ -223,31 +223,43 @@ function get_results_experiment2() #this computes results for experiment 1
     educ_change=reshape(df.educ,T_data,N) #need to get pick up education
     educ=educ_change' #do this to get in the right form
     wages_vector = exp.(β_1.+ β_2.*k_vector.+ β_3.*k_vector.^2 .+  β_4*educ.+xi_matrix)
-    sim_data_all=simulate_data(lfp_vector,k_vector,wages_vector,df) #convert the results for all the simulations into a datraframe, this is in N*T, 6, m dimension
+    sim_data_all=simulate_data(lfp_vector, k_vector, wages_vector, df) #convert the results for all the simulations into a datraframe, this is in N*T, 6, m dimension
 
     average_working_45_54=zeros(1,M) ##setting up matrix for storing the moment differences
     average_working_55_64=zeros(1,M)
+    tax_revenues = zeros(1, M)
 
     for m=1:M
         sim_data=DataFrames.DataFrame(sim_data_all[:,:,m], :auto) #take out one simulation's data
-        sim_data=rename!(sim_data,[:id,:age,:lfp,:x,:wage,:educ])
+        sim_data=rename!(sim_data,[:id,:age,:lfp,:x,:wage,:educ,:hinc])
         sim_data_45_54=filter(row -> 45<=row.age<=54, sim_data) ##only calculate for the out of sample group
         sim_data_55_64=filter(row -> 55<=row.age<=64, sim_data) ##only calculate for the out of sample group
 
         average_working_45_54[1, m] = mean(sim_data_45_54.lfp)
         average_working_55_64[1, m] = mean(sim_data_55_64.lfp)
 
-    end
-        average_working_45_54_mean=mean(average_working_45_54,dims=2) #average over the second dimension, which is M
-        average_working_55_64_mean=mean(average_working_55_64,dims=2)
+        ### To compute tax_revenues
+        sim_data_working = filter(row -> row.lfp == 1, sim_data)
 
-        return average_working_45_54_mean, average_working_55_64_mean
+        tax_revenues[1, m] = sum(τ.*(sim_data_working.wage .+ sim_data_working.hinc))
+    end
+        average_working_45_54_mean=mean(average_working_45_54,dims = 2) #average over the second dimension, which is M
+        average_working_55_64_mean=mean(average_working_55_64,dims = 2)
+        tax_revenues_mean = mean(tax_revenues, dims = 2)
+
+        return average_working_45_54_mean, average_working_55_64_mean, tax_revenues_mean
 end
 
-@elapsed working_45_54_mean, working_55_64_mean = get_results_experiment2()
-@show working_45_54_mean, working_55_64_mean
+τ=0.0
+@elapsed working_45_54_mean, working_55_64_mean, tax_revenues_mean = get_results_experiment2()
+@show working_45_54_mean, working_55_64_mean, tax_revenues_mean
+
+τ=0.1
+@elapsed working_45_54_mean_policy, working_55_64_mean_policy, tax_revenues_mean_policy = get_results_experiment2()
+@show working_45_54_mean_policy, working_55_64_mean_policy, tax_revenues_mean_policy
+
 
 ### τ=0, working_45_54_mean = 0.536, working_55_64_mean = 0.494
 ### Note: the result for age group 55-64 is consistent with what was obtained in the experiment 1, working_by_educ_extrapolate[1]
 
-### τ=0.1, working_45_54_mean = 0.389, working_55_64_mean = 0.378
+### τ=0.1, working_45_54_mean = 0.389, working_55_64_mean = 0.378, tax revenues = 7.23*e7
