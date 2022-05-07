@@ -269,8 +269,8 @@ end
 ### Experiment 3
 
 ### Took the same code as for experiment 2 and instead of calling cutoffs_analytical(), I call cutoffs_analytical_exp3()
-
-
+### For each woman determine whether tau1=tau2=0.1 or tau1=0.1, tau2=0.2
+    
 function cutoffs_analytical_exp3(xi_matrix) ####This functionmcalculates cutoffs
     E_MAX=zeros(N,K,T_data)
     xi_star_matrix=zeros(N,K,T_data)  ##place to store cutoffs. This function use real data rather than grid so don't need grid for the other state variables
