@@ -27,22 +27,22 @@ T_data=20 ##Periods
 δ=0.95
 
 N=1506
-M=1 ##M is number of simulations
+M=20 ##M is number of simulations
 
 
 ##setting parameters
 
-α_1=-14500
-α_2=-0.25
-α_3=-100
-α_4=-200
-b=1000
+α_1= -13018.298677580588
+α_2= -0.015777657660750427
+α_3= 75.96125446214072
+α_4= 321.67881272521987
+b= 15529.812361313532
 
-β_1=9.93
-β_2=0.01
-β_3=-0.0002
-β_4=0.035
-σ_ξ=0.194
+β_1= 9.35603008429824
+β_2= 0.018728509806557662
+β_3= -0.00033413093692407996
+β_4= 0.040553074132492255
+σ_ξ= 0.6013402504617867
 
 ### tax rate
 τ = 0
@@ -189,7 +189,7 @@ function get_results_experiment1() #this computes results for experiment 1
 
     for m=1:M
         sim_data=DataFrames.DataFrame(sim_data_all[:,:,m], :auto) #take out one simulation's data
-        sim_data=rename!(sim_data,[:id,:age,:lfp,:x,:wage,:educ])
+        sim_data=rename!(sim_data,[:id,:age,:lfp,:x,:wage,:educ, :hinc])
         sim_data_55_64=filter(row -> row.age>=55, sim_data) ##only calculate for the out of sample group
 
         sim_data_educ_under_12=filter(row -> row.educ<=11, sim_data_55_64) ##only calculate participation for the out of sample group
@@ -230,7 +230,8 @@ function get_results_experiment2() #this computes results for experiment 1
     average_working_45_54=zeros(1,M) ##setting up matrix for storing the moment differences
     average_working_55_64=zeros(1,M)
     tax_revenues = zeros(1, M)
-
+    tax_revenues_45_54 = zeros(1, M)
+    tax_revenues_55_64 = zeros(1, M)
     for m=1:M
         sim_data=DataFrames.DataFrame(sim_data_all[:,:,m], :auto) #take out one simulation's data
         sim_data=rename!(sim_data,[:id,:age,:lfp,:x,:wage,:educ,:hinc])
@@ -241,24 +242,32 @@ function get_results_experiment2() #this computes results for experiment 1
         average_working_55_64[1, m] = mean(sim_data_55_64.lfp)
 
         ### To compute tax_revenues
-        sim_data_working = filter(row -> row.lfp == 1, sim_data)
+    #    sim_data_working = filter(row -> row.lfp == 1, sim_data)
+    #    sim_data_working_45_54 = filter(row -> row.lfp == 1, sim_data_45_54)
+    #    sim_data_working_55_64 = filter(row -> row.lfp == 1, sim_data_55_64)
 
-        tax_revenues[1, m] = sum(τ.*(sim_data_working.wage .+ sim_data_working.hinc))
+        tax_revenues[1, m] = sum(τ.*(sim_data.wage.*sim_data_45_54.lfp .+ sim_data.hinc))
+        tax_revenues_45_54[1, m] = sum(τ.*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc))
+        tax_revenues_55_64[1, m] = sum(τ.*(sim_data_55_64.wage.*sim_data_45_54.lfp .+ sim_data_55_64.hinc))
+
     end
         average_working_45_54_mean=mean(average_working_45_54,dims = 2) #average over the second dimension, which is M
         average_working_55_64_mean=mean(average_working_55_64,dims = 2)
         tax_revenues_mean = mean(tax_revenues, dims = 2)
+        tax_revenues_45_54_mean = mean(tax_revenues_45_54, dims = 2)
+        tax_revenues_55_64_mean = mean(tax_revenues_55_64, dims = 2)
 
-        return average_working_45_54_mean, average_working_55_64_mean, tax_revenues_mean
+
+        return average_working_45_54_mean, average_working_55_64_mean, tax_revenues_mean, tax_revenues_45_54_mean, tax_revenues_55_64_mean
 end
 
 τ=0.0
-@elapsed working_45_54_mean, working_55_64_mean, tax_revenues_mean = get_results_experiment2()
-@show working_45_54_mean, working_55_64_mean, tax_revenues_mean
+@elapsed working_45_54_mean, working_55_64_mean, tax_revenues_mean, tax_revenues_45_54_mean, tax_revenues_55_64_mean = get_results_experiment2()
+@show working_45_54_mean, working_55_64_mean, tax_revenues_mean, tax_revenues_45_54_mean, tax_revenues_55_64_mean
 
 τ=0.1
-@elapsed working_45_54_mean_exp2, working_55_64_mean_exp2, tax_revenues_mean_exp2 = get_results_experiment2()
-@show working_45_54_mean_exp2, working_55_64_mean_exp2, tax_revenues_mean_exp2
+@elapsed working_45_54_mean_exp2, working_55_64_mean_exp2, tax_revenues_mean_exp2, tax_revenues_45_54_mean_exp2, tax_revenues_55_64_mean_exp2 = get_results_experiment2()
+@show working_45_54_mean_exp2, working_55_64_mean_exp2, tax_revenues_mean_exp2, tax_revenues_45_54_mean_exp2, tax_revenues_55_64_mean_exp2
 
 
 ### τ=0, working_45_54_mean = 0.536, working_55_64_mean = 0.494
@@ -269,8 +278,8 @@ end
 ### Experiment 3
 
 ### Took the same code as for experiment 2 and instead of calling cutoffs_analytical(), I call cutoffs_analytical_exp3()
-### For each woman determine whether tau1=tau2=0.1 or tau1=0.1, tau2=0.2
-    
+
+
 function cutoffs_analytical_exp3(xi_matrix) ####This functionmcalculates cutoffs
     E_MAX=zeros(N,K,T_data)
     xi_star_matrix=zeros(N,K,T_data)  ##place to store cutoffs. This function use real data rather than grid so don't need grid for the other state variables
@@ -385,6 +394,9 @@ function get_results_experiment3() #this computes results for experiment 1
     average_working_45_54=zeros(1,M) ##setting up matrix for storing the moment differences
     average_working_55_64=zeros(1,M)
     tax_revenues = zeros(1, M)
+    tax_revenues_45_54 = zeros(1, M)
+    tax_revenues_55_64 = zeros(1, M)
+
 
     τ1 = 0.1
     τ2 = 0.2
@@ -400,21 +412,58 @@ function get_results_experiment3() #this computes results for experiment 1
         average_working_55_64[1, m] = mean(sim_data_55_64.lfp)
 
         ### To compute tax_revenues
-        sim_data_working = filter(row -> row.lfp == 1, sim_data)
+        #sim_data_working = filter(row -> row.lfp == 1, sim_data)
 
-        tax_revenues[1, m] = sum(τ1.*(sim_data_working.wage .+ sim_data_working.hinc).*(sim_data_working.wage .+ sim_data_working.hinc .<= I) .+
-                                (τ2.*(sim_data_working.wage .+ sim_data_working.hinc .- I).+ τ1.*I).*(sim_data_working.wage .+ sim_data_working.hinc .> I))
+        tax_revenues[1, m] = sum(τ1.*(sim_data.wage.*sim_data.lfp .+ sim_data.hinc).*(sim_data.wage.*sim_data.lfp .+ sim_data.hinc .<= I) .+
+                                (τ2.*(sim_data.wage.*sim_data.lfp .+ sim_data.hinc .- I).+ τ1.*I).*(sim_data.wage.*sim_data.lfp .+ sim_data.hinc .> I))
+
+        tax_revenues_45_54[1, m] = sum(τ1.*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc).*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc .<= I) .+
+                                (τ2.*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc .- I).+ τ1.*I).*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc .> I))
+        tax_revenues_55_64[1, m] = sum(τ1.*(sim_data_55_64.wage.*sim_data_55_64.lfp .+ sim_data_55_64.hinc).*(sim_data_55_64.wage.*sim_data_55_64.lfp .+ sim_data_55_64.hinc .<= I) .+
+                                (τ2.*(sim_data_55_64.wage.*sim_data_55_64.lfp .+ sim_data_55_64.hinc .- I).+ τ1.*I).*(sim_data_55_64.wage.*sim_data_55_64.lfp .+ sim_data_55_64.hinc .> I))
+
+
     end
         average_working_45_54_mean=mean(average_working_45_54,dims = 2) #average over the second dimension, which is M
         average_working_55_64_mean=mean(average_working_55_64,dims = 2)
+        tax_revenues_45_54_mean = mean(tax_revenues_45_54, dims = 2)
+        tax_revenues_55_64_mean = mean(tax_revenues_55_64, dims = 2)
         tax_revenues_mean = mean(tax_revenues, dims = 2)
 
-        return average_working_45_54_mean, average_working_55_64_mean, tax_revenues_mean
+        return average_working_45_54_mean, average_working_55_64_mean, tax_revenues_mean, tax_revenues_45_54_mean, tax_revenues_55_64_mean
 end
 
-@elapsed working_45_54_mean_exp3, working_55_64_mean_exp3, tax_revenues_mean_exp3 = get_results_experiment3()
-@show working_45_54_mean_exp3, working_55_64_mean_exp3, tax_revenues_mean_exp3
+@elapsed working_45_54_mean_exp3, working_55_64_mean_exp3, tax_revenues_mean_exp3, tax_revenues_45_54_mean_exp3, tax_revenues_55_64_mean_exp3 = get_results_experiment3()
+@show working_45_54_mean_exp3, working_55_64_mean_exp3, tax_revenues_mean_exp3, tax_revenues_45_54_mean_exp3, tax_revenues_55_64_mean_exp3
 
 ### income > 50,000, then τ1 = 0.1, τ2 = 0.2,
 ### income <= 50,000, then τ1 =  τ2 = 0.1,
 ### working_45_54_mean = 0.371, working_55_64_mean = 0.284, tax revenues = 6.86*e7
+
+### Show all results
+### Exp 1
+working_by_educ_extrapolate
+working_by_age_extrapolate
+
+### Exp 2
+### baseline
+working_45_54_mean
+working_55_64_mean
+tax_revenues_mean
+tax_revenues_45_54_mean
+tax_revenues_55_64_mean
+
+### tau = 0.1
+working_45_54_mean_exp2
+working_55_64_mean_exp2
+tax_revenues_mean_exp2
+tax_revenues_45_54_mean_exp2
+tax_revenues_55_64_mean_exp2
+
+### Exp 3
+### tau1 = 0.1, tau2 = 0.2
+working_45_54_mean_exp3
+working_55_64_mean_exp3
+tax_revenues_mean_exp3
+tax_revenues_45_54_mean_exp3
+tax_revenues_55_64_mean_exp3
