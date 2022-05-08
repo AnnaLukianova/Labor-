@@ -246,7 +246,7 @@ function get_results_experiment2() #this computes results for experiment 1
     #    sim_data_working_45_54 = filter(row -> row.lfp == 1, sim_data_45_54)
     #    sim_data_working_55_64 = filter(row -> row.lfp == 1, sim_data_55_64)
 
-        tax_revenues[1, m] = sum(τ.*(sim_data.wage.*sim_data_45_54.lfp .+ sim_data.hinc))
+        tax_revenues[1, m] = sum(τ.*(sim_data.wage.*sim_data.lfp .+ sim_data.hinc))
         tax_revenues_45_54[1, m] = sum(τ.*(sim_data_45_54.wage.*sim_data_45_54.lfp .+ sim_data_45_54.hinc))
         tax_revenues_55_64[1, m] = sum(τ.*(sim_data_55_64.wage.*sim_data_45_54.lfp .+ sim_data_55_64.hinc))
 
